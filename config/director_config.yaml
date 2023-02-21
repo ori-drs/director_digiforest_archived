@@ -1,93 +1,10 @@
 robotName: "slam"
 modelName: "slam"
-xacroConfig:
-  package: "anymal_c"
-  path: "urdf/anymal_c.urdf.xacro"
-  args:
-    simulation: "True"
-    perfect_sensors: "True"
-    fixed: "False"
-    mesh: "True"
-    material_color_rgba: "0.7 0.7 0.7 1.0"
-    lidar: "True"
-    realsense: "True"
 colorMode: "Textures"
-teleopJointGroups:
-  -
-    name: "Base"
-    joints:
-      - "base_x"
-      - "base_y"
-      - "base_z"
-      - "base_roll"
-      - "base_pitch"
-      - "base_yaw"
-    labels:
-      - "x"
-      - "y"
-      - "z"
-      - "roll"
-      - "pitch"
-      - "yaw"
-  -
-    name: "Left Arm"
-    joints:
-      - "LF_HAA"
-      - "LF_HFE"
-      - "LF_KFE"
-    labels:
-      - "LF_HAA"
-      - "LF_HFE"
-      - "LF_KFE"
-  -
-    name: "Right Arm"
-    joints:
-      - "RF_HAA"
-      - "RF_HFE"
-      - "RF_KFE"
-    labels:
-      - "RF_HAA"
-      - "RF_HFE"
-      - "RF_KFE"
-  -
-    name: "Left Hind"
-    joints:
-      - "LH_HAA"
-      - "LH_HFE"
-      - "LH_KFE"
-    labels:
-      - "LH_HAA"
-      - "LH_HFE"
-      - "LH_KFE"
-  -
-    name: "Right Hind"
-    joints:
-      - "RH_HAA"
-      - "RH_HFE"
-      - "RH_KFE"
-    labels:
-      - "RH_HAA"
-      - "RH_HFE"
-      - "RH_KFE"
 jointNames:
-  - "LF_HAA"
-  - "LF_HFE"
-  - "LF_KFE"
-  - "RF_HAA"
-  - "RF_HFE"
-  - "RF_KFE"
-  - "LH_HAA"
-  - "LH_HFE"
-  - "LH_KFE"
-  - "RH_HAA"
-  - "RH_HFE"
-  - "RH_KFE"
+  - ""
 pelvisLink: "base"
 headLink: "base"
-leftFootLink: "LH_FOOT"
-rightFootLink: "RH_FOOT"
-leftHandLink: "LF_FOOT"
-rightHandLink: "RF_FOOT"
 grid_z_offset: 0.49
 quadruped: "True"
 sensors:
@@ -95,33 +12,10 @@ sensors:
   camera:
     depth:
       - name: "front camera"
-        # The namespace of the camera of interest. Subscriptions are created to various topics within this namespace
-        # e.g. namespace/image_raw and namespace/camera_info
         namespace: "depth_camera_front/aligned_depth_to_color"
-        # The image transport to use for this camera
-        transport: "raw"
-      - name: "left camera"
-        namespace: "depth_camera_left/aligned_depth_to_color"
-        transport: "raw"
-      - name: "right camera"
-        namespace: "depth_camera_right/aligned_depth_to_color"
-        transport: "raw"
-      - name: "rear camera"
-        namespace: "depth_camera_rear/aligned_depth_to_color"
-        transport: "raw"
     color:
       - name: "front camera"
         namespace: "/wide_angle_camera_front/color"
-        transport: "raw"
-      - name: "left camera"
-        namespace: "depth_camera_left/color"
-        transport: "raw"
-      - name: "right camera"
-        namespace: "depth_camera_right/color"
-        transport: "raw"
-      - name: "rear camera"
-        namespace: "/wide_angle_camera_rear/color"
-        transport: "raw"
   lidar:
     topic: "/point_cloud_filter/lidar/point_cloud_filtered"
 perceptionSources:
