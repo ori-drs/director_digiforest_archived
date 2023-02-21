@@ -23,7 +23,7 @@ class ToggleImageViewHandler(object):
         else:
             self.manager.hide()
 
-def startup(robotSystem, globalsDict=None):
+def startup(globalsDict=None):
 
     # Panels:
     nodeImageManager = cameraview.StaticImageManager()

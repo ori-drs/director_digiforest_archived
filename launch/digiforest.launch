@@ -5,7 +5,7 @@
     <arg name="config_filename" default="director_config.yaml"/>
 
     <node pkg="director" type="director" name="director" output="screen"
-          args="--startup $(find director_digiforest)/src/director_digiforest/runstartup_norobot.py
+          args="--startup $(find director_digiforest)/src/director_digiforest/runstartup.py
           --robot-config $(find director_digiforest)/config/$(arg config_filename)">
     </node>
 
