@@ -79,6 +79,9 @@ class ForestPayloadsPanel(QObject):
         self.imageManager = imageManager
         self.treeData = np.array([])
         
+        # Variable to help with automatic height colorization
+        self.medianPoseHeight = 0
+        
     def runInputDirectory(self):
         return os.path.expanduser(self.ui.loadGraphText.text)
 
@@ -159,7 +162,7 @@ class ForestPayloadsPanel(QObject):
         #localPointCloudDir = os.path.join(self.dataDir, "../exp"+str(expNum), "individual_clouds")
         localPointCloudDir = os.path.join(self.dataDir, "individual_clouds")
         localPointCloud = "cloud_"+str(sec)+"_"+self._convertNanoSecsToString(nsec)+".pcd"
-        payloadCloudDir = os.path.join(self.dataDir, "payload_clouds")
+        payloadCloudDir = os.path.join(self.dataDir, "payload_clouds_in_map")
         imagesDir = os.path.join(self.dataDir, "individual_images")
         treeDescriptionFile = os.path.join(self.dataDir, "trees.csv")
 
@@ -237,11 +240,10 @@ class ForestPayloadsPanel(QObject):
             print("Error cannot load file")
             return
 
-        transformedPolyData = self.transformPolyData(polyData, trans, quat)
-        obj = vis.showPolyData(transformedPolyData, os.path.basename(fileName), parent="slam")
+        #transformedPolyData = self.transformPolyData(polyData, trans, quat)
+        obj = vis.showPolyData(polyData, os.path.basename(fileName), parent="slam")
         vis.addChildFrame(obj)
-        transform = transformUtils.transformFromPose(trans, quat)
-        self.terrainMapping(fileName, transform)
+        self.terrainMapping(fileName)
 
     def transformPolyData(self, polyData, translation, quat):
         nodeTransform = transformUtils.transformFromPose(translation, quat)
@@ -275,18 +277,27 @@ class ForestPayloadsPanel(QObject):
         self.fileData = np.loadtxt(fileName, delimiter=",", dtype=np.float, skiprows=1)
         self._loadFileData(fileName)
 
-    def terrainMapping(self, fileName, transform):
-        '''
-        Perform terrain mapping on a point cloud. The transform 'transform' will be applied to all the
-        results for display
-        '''
+    def terrainMappingTest(self):
+        fileName = os.getenv('HOME') + "/vilens_slam_offline_data/data/2022-09-00-finland-reference/1.2_id_1/payload_clouds_transformed_in_map_frame/cloud_1663668471_346755000.pcd"
+        self.terrainMapping(fileName)
+
+    def convertHeightsToMesh(self,parent):
+        pcd=pcl.PointCloud()
+        pcd.from_list(self.heights_array_raw)
+        pcd.to_file(b'/tmp/height_map.pcd')
+        os.system("rosrun forest_nav generate_mesh") # running a ROS node to convert heights to mesh - nasty!
+        self.height_mesh = ioutils.readPolyData("/tmp/height_map.ply")
+        self.height_mesh = segmentation.addCoordArraysToPolyDataXYZ( self.height_mesh )
+        vis.showPolyData(self.height_mesh,'Height Mesh','Color By','z',colorByRange=[self.medianPoseHeight-4,self.medianPoseHeight+4], parent=parent)
+
+    def terrainMapping(self, fileName):
         cloud_pc = pcl.PointCloud_PointNormal()
         cloud_pc._from_pcd_file(fileName.encode('utf-8'))
-        self._showPCLXYZNormal(cloud_pc, "Cloud Raw", os.path.basename(fileName), transform, visible=False)
+        self._showPCLXYZNormal(cloud_pc, "Cloud Raw", visible=False, parent=os.path.basename(fileName))
 
         # remove non-up points
         cloud = df.filterUpNormal(cloud_pc, 0.95)
-        self._showPCLXYZNormal(cloud, "Cloud Up Normals only", os.path.basename(fileName), transform)
+        self._showPCLXYZNormal(cloud, "Cloud Up Normals only", visible=False, parent=os.path.basename(fileName))
 
         # drop from xyznormal to xyz
         array_xyz = cloud.to_array()[:, 0:3]
@@ -294,33 +305,31 @@ class ForestPayloadsPanel(QObject):
         cloud.from_array(array_xyz)
 
         # get the terrain height
-        self.heights_array = df.getTerrainHeight(cloud)
-        self.heights_pd = vnp.getVtkPolyDataFromNumpyPoints(self.heights_array)
-        obj = vis.showPolyData(filterUtils.transformPolyData(self.heights_pd, transform),
-                               'Heights', color=[0, 1, 0], visible=False,
+        self.heights_array_raw = df.getTerrainHeight(cloud)
+        self.convertHeightsToMesh(os.path.basename(fileName))
+
+        self.heights_pd = vnp.getVtkPolyDataFromNumpyPoints(self.heights_array_raw)
+        obj = vis.showPolyData(self.heights_pd, 'Heights', color=[0, 1, 0], visible=False,
                                parent=os.path.basename(fileName))
         obj.setProperty('Point Size', 10)
 
         # filter NaNs *** these could have been removed in function ***
-        self.heights_array = self.heights_array[self.heights_array[:, 2] < 10]
+        self.heights_array = self.heights_array_raw[self.heights_array_raw[:, 2] < 10]
         self.heights_pd = vnp.getVtkPolyDataFromNumpyPoints(self.heights_array)
-        obj = vis.showPolyData(filterUtils.transformPolyData(self.heights_pd, transform),
-                               'Heights Filtered', color=[0, 0, 1],
+        obj = vis.showPolyData(self.heights_pd, 'Heights Filtered', visible=False, color=[0, 0, 1],
                                parent=os.path.basename(fileName))
         obj.setProperty('Point Size', 10)
 
-    def _convertPclToPolyData(self, cloud, transform):
+    def _convertPclToPolyData(self, cloud):
         polyData=vnp.getVtkPolyDataFromNumpyPoints(cloud.to_array())
-        transformedPolyData = filterUtils.transformPolyData(polyData, transform)
-        return transformedPolyData
+        return polyData
 
-
-    def _showPCLXYZNormal(self, cloud_pc, name, parent, transform, visible=True):
+    def _showPCLXYZNormal(self, cloud_pc, name, visible, parent):
         array_xyz = cloud_pc.to_array()[:,0:3]
         cloud_pc = pcl.PointCloud()
         cloud_pc.from_array(array_xyz)
-        cloud_pd= self._convertPclToPolyData(cloud_pc, transform)
-        vis.showPolyData(cloud_pd, name, parent=parent, visible=visible)
+        cloud_pd= self._convertPclToPolyData(cloud_pc)
+        vis.showPolyData(cloud_pd, name, visible=visible, parent=parent)
 
     def _startNodePicking(self, ):
         picker = ObjectPicker(numberOfPoints=1, view=app.getCurrentRenderView())
@@ -394,7 +403,7 @@ class ForestPayloadsPanel(QObject):
                 # drawing the pose graph
 
                 # finding the payload nodes
-                payloadDir = os.path.join(self.dataDir, "payload_clouds")
+                payloadDir = os.path.join(self.dataDir, "payload_clouds_in_map")
                 if os.path.isdir(payloadDir):
                     payloadFiles = [f for f in os.listdir(payloadDir) if os.path.isfile(os.path.join(payloadDir, f))]
                     dataPayload = np.array([])  # point coordinates
@@ -418,6 +427,9 @@ class ForestPayloadsPanel(QObject):
                         if not polyData or not polyData.GetNumberOfPoints():
                             print("Failed to read data from file: ", fileName)
                             return
+
+                        zvalues = vtkNumpy.getNumpyFromVtk(polyData, "Points")[:, 2]
+                        self.medianPoseHeight = np.median(zvalues)
 
                         obj = vis.showPolyData(
                             polyData, "payload_" + str(expNum), parent="slam"

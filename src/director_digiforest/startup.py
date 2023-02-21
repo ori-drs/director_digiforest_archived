@@ -37,5 +37,7 @@ def startup(globalsDict=None):
     imageViewHandler = ToggleImageViewHandler(imageWidget)
     
     forestPanel = forestpayloadspanel.init(nodeImageManager)
+    
+    globalsDict["forestPanel"] = forestPanel
 
 
