@@ -168,10 +168,10 @@ class ForestPayloadsPanel(QObject):
 
         localPointCloudFile = os.path.join(localPointCloudDir, localPointCloud)
         payloadPointCloudFile = os.path.join(payloadCloudDir, localPointCloud)
-        if os.path.isfile(localPointCloudFile):
-            self.loadPointCloud(localPointCloudFile, trans, quat)
-        elif os.path.isfile(payloadPointCloudFile):
+        if os.path.isfile(payloadPointCloudFile):
             self.loadPointCloud(payloadPointCloudFile, trans, quat)
+        elif os.path.isfile(localPointCloudFile):
+            self.loadPointCloud(localPointCloudFile, trans, quat)
 
         if os.path.isfile(treeDescriptionFile):
             self.loadCylinders(treeDescriptionFile)
@@ -277,10 +277,6 @@ class ForestPayloadsPanel(QObject):
         self.fileData = np.loadtxt(fileName, delimiter=",", dtype=np.float, skiprows=1)
         self._loadFileData(fileName)
 
-    def terrainMappingTest(self):
-        fileName = os.getenv('HOME') + "/vilens_slam_offline_data/data/2022-09-00-finland-reference/1.2_id_1/payload_clouds_transformed_in_map_frame/cloud_1663668471_346755000.pcd"
-        self.terrainMapping(fileName)
-
     def convertHeightsToMesh(self,parent):
         pcd=pcl.PointCloud()
         pcd.from_list(self.heights_array_raw)
@@ -288,7 +284,8 @@ class ForestPayloadsPanel(QObject):
         os.system("rosrun forest_nav generate_mesh") # running a ROS node to convert heights to mesh - nasty!
         self.height_mesh = ioutils.readPolyData("/tmp/height_map.ply")
         self.height_mesh = segmentation.addCoordArraysToPolyDataXYZ( self.height_mesh )
-        vis.showPolyData(self.height_mesh,'Height Mesh','Color By','z',colorByRange=[self.medianPoseHeight-4,self.medianPoseHeight+4], parent=parent)
+        vis.showPolyData(self.height_mesh,'Height Mesh','Color By','z',
+                         colorByRange=[self.medianPoseHeight-4,self.medianPoseHeight+4], parent=parent)
 
     def terrainMapping(self, fileName):
         cloud_pc = pcl.PointCloud_PointNormal()
