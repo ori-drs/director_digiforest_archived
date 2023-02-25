@@ -27,6 +27,7 @@ import os
 import re
 import numpy as np
 import functools
+import shutil
 
 def addWidgetsToDict(widgets, d):
 
@@ -75,7 +76,7 @@ class ForestPayloadsPanel(QObject):
         self.ui.pickButtonCombinedPointCloud.connect(
             "clicked()", self._startPicking
         )
-        self.dataDir = None
+        self.data_dir = None
         self.imageManager = imageManager
         self.treeData = np.array([])
         
@@ -99,7 +100,7 @@ class ForestPayloadsPanel(QObject):
     def onChooseRunInputDir(self):
         newDir = self.chooseDirectory()
         if newDir:
-            self.dataDir = newDir
+            self.data_dir = newDir
             self.ui.loadGraphText.text = self.getShorterNameLast(newDir)
             self.parsePoseGraph(newDir)
             
@@ -159,32 +160,40 @@ class ForestPayloadsPanel(QObject):
             print("Error : Cannot find picked node")
             return
 
-        #localPointCloudDir = os.path.join(self.dataDir, "../exp"+str(expNum), "individual_clouds")
-        localPointCloudDir = os.path.join(self.dataDir, "individual_clouds")
-        localPointCloud = "cloud_"+str(sec)+"_"+self._convertNanoSecsToString(nsec)+".pcd"
-        payloadCloudDir = os.path.join(self.dataDir, "payload_clouds_in_map")
-        imagesDir = os.path.join(self.dataDir, "individual_images")
-        treeDescriptionFile = os.path.join(self.dataDir, "trees.csv")
+        local_pointcloud_dir = os.path.join(self.data_dir, "individual_clouds")
+        height_map_dir = os.path.join(self.data_dir, "height_maps")
+        local_height_map = "height_map_"+str(sec)+"_"+self._convertNanoSecsToString(nsec)+".ply"
+        height_map_file = os.path.join(height_map_dir, local_height_map)
 
-        localPointCloudFile = os.path.join(localPointCloudDir, localPointCloud)
-        payloadPointCloudFile = os.path.join(payloadCloudDir, localPointCloud)
-        if os.path.isfile(payloadPointCloudFile):
-            self.loadPointCloud(payloadPointCloudFile, trans, quat)
-        elif os.path.isfile(localPointCloudFile):
-            self.loadPointCloud(localPointCloudFile, trans, quat)
+        local_cloud = "cloud_"+str(sec)+"_"+self._convertNanoSecsToString(nsec)+".pcd"
+        payload_cloud_dir = os.path.join(self.data_dir, "payload_clouds_in_map")
+        tree_description_file = os.path.join(self.data_dir, "trees.csv")
 
-        if os.path.isfile(treeDescriptionFile):
-            self.loadCylinders(treeDescriptionFile)
+        local_cloud_file = os.path.join(local_pointcloud_dir, local_cloud)
+        payload_cloud_file = os.path.join(payload_cloud_dir, local_cloud)
+        if os.path.isfile(payload_cloud_file):
+            self.loadPointCloud(payload_cloud_file, trans, quat)
+        elif os.path.isfile(local_cloud_file):
+            self.loadPointCloud(local_cloud_file, trans, quat)
 
-        # if os.path.isdir(imagesDir):
-        #     self.loadImages(imagesDir, sec, self._convertNanoSecsToString(nsec))
+        if os.path.isfile(payload_cloud_file):
+            self.terrain_mapping(payload_cloud_file, height_map_file)
+        elif os.path.isfile(local_cloud_file):
+            self.terrain_mapping(local_cloud_file, height_map_file)
 
-    def loadCylinders(self, fileName):
+        if os.path.isfile(tree_description_file):
+            self.loadCylinders(tree_description_file)
+
+        #images_dir = os.path.join(self.data_dir, "individual_images")
+        # if os.path.isdir(images_dir):
+        #     self.loadImages(images_dir, sec, self._convertNanoSecsToString(nsec))
+
+    def loadCylinders(self, filename):
         '''
         From a csv file describing the trees as cylinders, load and display them
         '''
-        print("Loading ", fileName)
-        self.treeData = np.loadtxt(fileName, delimiter=" ", dtype=np.float)
+        print("Loading ", filename)
+        self.treeData = np.loadtxt(filename, delimiter=" ", dtype=np.float)
         id = 0
         for tree in self.treeData:
             if tree.size < 7:
@@ -228,22 +237,21 @@ class ForestPayloadsPanel(QObject):
 
 
 
-    def loadPointCloud(self, fileName, trans, quat):
-        print("Loading : ", fileName)
-        if not os.path.isfile(fileName):
-            print("File doesn't exist", fileName)
+    def loadPointCloud(self, filename, trans, quat):
+        print("Loading : ", filename)
+        if not os.path.isfile(filename):
+            print("File doesn't exist", filename)
             return
 
-        polyData = ioutils.readPolyData(fileName, ignoreSensorPose=True)
+        polyData = ioutils.readPolyData(filename, ignoreSensorPose=True)
 
         if not polyData or not polyData.GetNumberOfPoints():
             print("Error cannot load file")
             return
 
         #transformedPolyData = self.transformPolyData(polyData, trans, quat)
-        obj = vis.showPolyData(polyData, os.path.basename(fileName), parent="slam")
+        obj = vis.showPolyData(polyData, os.path.basename(filename), parent="slam")
         vis.addChildFrame(obj)
-        self.terrainMapping(fileName)
 
     def transformPolyData(self, polyData, translation, quat):
         nodeTransform = transformUtils.transformFromPose(translation, quat)
@@ -251,9 +259,9 @@ class ForestPayloadsPanel(QObject):
         transformedPolyData = filterUtils.transformPolyData(polyData, nodeTransform)
         return transformedPolyData
 
-    def loadg2oFile(self, fileName):
-        print("loading", fileName)
-        self.fileData = np.loadtxt(fileName, delimiter=" ", dtype='<U21', usecols=np.arange(0,11))
+    def loadg2oFile(self, filename):
+        print("loading", filename)
+        self.fileData = np.loadtxt(filename, delimiter=" ", dtype='<U21', usecols=np.arange(0,11))
         #only keep vertex SE3 rows
         self.fileData = np.delete(self.fileData, np.where(
                        (self.fileData[:, 0] == "EDGE_SE3:QUAT"))[0], axis=0)
@@ -270,31 +278,39 @@ class ForestPayloadsPanel(QObject):
         self.fileData = np.insert(self.fileData, 2, nsec, axis=1)
 
         self.fileData = self.fileData.astype(float, copy=False)
-        self._loadFileData(fileName)
+        self._loadFileData(filename)
 
-    def loadCsvFile(self, fileName):
-        print("loading", fileName)
-        self.fileData = np.loadtxt(fileName, delimiter=",", dtype=np.float, skiprows=1)
-        self._loadFileData(fileName)
+    def loadCsvFile(self, filename):
+        print("loading", filename)
+        self.fileData = np.loadtxt(filename, delimiter=",", dtype=np.float, skiprows=1)
+        self._loadFileData(filename)
 
-    def convertHeightsToMesh(self,parent):
-        pcd=pcl.PointCloud()
-        pcd.from_list(self.heights_array_raw)
-        pcd.to_file(b'/tmp/height_map.pcd')
-        os.system("rosrun forest_nav generate_mesh") # running a ROS node to convert heights to mesh - nasty!
-        self.height_mesh = ioutils.readPolyData("/tmp/height_map.ply")
+    def convert_heights_mesh(self, parent, height_map_file):
+        if not os.path.isfile(height_map_file):
+            pcd=pcl.PointCloud()
+            pcd.from_list(self.heights_array_raw)
+            pcd.to_file(b'/tmp/height_map.pcd')
+            os.system("rosrun forest_nav generate_mesh") # running a ROS node to convert heights to mesh - nasty!
+            height_maps_dir = os.path.dirname(height_map_file)
+            if not os.path.isdir(height_maps_dir):
+                os.makedirs(height_maps_dir)
+            shutil.copyfile('/tmp/height_map.ply', height_map_file)
+        else:
+            print("Loading height_map", height_map_file)
+
+        self.height_mesh = ioutils.readPolyData(height_map_file)
         self.height_mesh = segmentation.addCoordArraysToPolyDataXYZ( self.height_mesh )
-        vis.showPolyData(self.height_mesh,'Height Mesh','Color By','z',
+        vis.showPolyData(self.height_mesh, 'Height Mesh', 'Color By', 'z',
                          colorByRange=[self.medianPoseHeight-4,self.medianPoseHeight+4], parent=parent)
 
-    def terrainMapping(self, fileName):
+    def terrain_mapping(self, filename, height_map_file):
         cloud_pc = pcl.PointCloud_PointNormal()
-        cloud_pc._from_pcd_file(fileName.encode('utf-8'))
-        self._showPCLXYZNormal(cloud_pc, "Cloud Raw", visible=False, parent=os.path.basename(fileName))
+        cloud_pc._from_pcd_file(filename.encode('utf-8'))
+        self._showPCLXYZNormal(cloud_pc, "Cloud Raw", visible=False, parent=os.path.basename(filename))
 
         # remove non-up points
         cloud = df.filterUpNormal(cloud_pc, 0.95)
-        self._showPCLXYZNormal(cloud, "Cloud Up Normals only", visible=False, parent=os.path.basename(fileName))
+        self._showPCLXYZNormal(cloud, "Cloud Up Normals only", visible=False, parent=os.path.basename(filename))
 
         # drop from xyznormal to xyz
         array_xyz = cloud.to_array()[:, 0:3]
@@ -303,18 +319,18 @@ class ForestPayloadsPanel(QObject):
 
         # get the terrain height
         self.heights_array_raw = df.getTerrainHeight(cloud)
-        self.convertHeightsToMesh(os.path.basename(fileName))
+        self.convert_heights_mesh(os.path.basename(filename), height_map_file)
 
         self.heights_pd = vnp.getVtkPolyDataFromNumpyPoints(self.heights_array_raw)
         obj = vis.showPolyData(self.heights_pd, 'Heights', color=[0, 1, 0], visible=False,
-                               parent=os.path.basename(fileName))
+                               parent=os.path.basename(filename))
         obj.setProperty('Point Size', 10)
 
         # filter NaNs *** these could have been removed in function ***
         self.heights_array = self.heights_array_raw[self.heights_array_raw[:, 2] < 10]
         self.heights_pd = vnp.getVtkPolyDataFromNumpyPoints(self.heights_array)
         obj = vis.showPolyData(self.heights_pd, 'Heights Filtered', visible=False, color=[0, 0, 1],
-                               parent=os.path.basename(fileName))
+                               parent=os.path.basename(filename))
         obj.setProperty('Point Size', 10)
 
     def _convertPclToPolyData(self, cloud):
@@ -364,8 +380,8 @@ class ForestPayloadsPanel(QObject):
         polyData = self._loadImageToVtk(imageFile)
         self.imageManager.addImage(imageId, polyData)
 
-    def _loadImageToVtk(self, fileName):
-        imageNumpy = matimage.imread(fileName)
+    def _loadImageToVtk(self, filename):
+        imageNumpy = matimage.imread(filename)
         imageNumpy = np.multiply(imageNumpy, 255).astype(np.uint8)
         imageColor = self._convertImageToColor(imageNumpy)
         image = vtkNumpy.numpyToImageData(imageColor)
@@ -382,12 +398,12 @@ class ForestPayloadsPanel(QObject):
         return colorImg
 
     def _getImageDir(self, expNum):
-        return os.path.join(self.dataDir, "../exp" + str(expNum), "individual_images")
+        return os.path.join(self.data_dir, "../exp" + str(expNum), "individual_images")
 
     def _getImageFileName(self, imagesDir, sec, nsec):
         return os.path.join(imagesDir, "image_" + str(sec) + "_" + self._convertNanoSecsToString(nsec) + ".png")
 
-    def _loadFileData(self, fileName):
+    def _loadFileData(self, filename):
         colors = [QtGui.QColor(0, 255, 0), QtGui.QColor(255, 0, 0), QtGui.QColor(0, 0, 255),
                   QtGui.QColor(255, 255, 0), QtGui.QColor(255, 0, 255), QtGui.QColor(0, 255, 255)]
         expNum = 1
@@ -400,7 +416,7 @@ class ForestPayloadsPanel(QObject):
                 # drawing the pose graph
 
                 # finding the payload nodes
-                payloadDir = os.path.join(self.dataDir, "payload_clouds_in_map")
+                payloadDir = os.path.join(self.data_dir, "payload_clouds_in_map")
                 if os.path.isdir(payloadDir):
                     payloadFiles = [f for f in os.listdir(payloadDir) if os.path.isfile(os.path.join(payloadDir, f))]
                     dataPayload = np.array([])  # point coordinates
@@ -422,7 +438,7 @@ class ForestPayloadsPanel(QObject):
                         polyData = vnp.numpyToPolyData(dataPayload)
 
                         if not polyData or not polyData.GetNumberOfPoints():
-                            print("Failed to read data from file: ", fileName)
+                            print("Failed to read data from file: ", filename)
                             return
 
                         zvalues = vtkNumpy.getNumpyFromVtk(polyData, "Points")[:, 2]
@@ -440,7 +456,7 @@ class ForestPayloadsPanel(QObject):
                 polyData = vnp.numpyToPolyData(data)
 
                 if not polyData or not polyData.GetNumberOfPoints():
-                    print("Failed to read data from file: ", fileName)
+                    print("Failed to read data from file: ", filename)
                     return
 
                 obj = vis.showPolyData(
@@ -471,9 +487,6 @@ class ForestPayloadsPanel(QObject):
         picker.drawLines = False
         picker.start()
         picker.annotationFunc = functools.partial(self._selectBestImage)
-
-
-
 
 
         
