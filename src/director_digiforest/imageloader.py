@@ -41,7 +41,7 @@ def _selectBestImage(self, pickedPoint):
     if bestNode[3] == None:
         print("Cannot find suitable node")
         return
-    self.loadImages(bestNode[3], bestNode[4], bestNode[5])
+    self.load_images(bestNode[3], bestNode[4], bestNode[5])
 
     # debug : visualize best fit
     d = DebugData()
