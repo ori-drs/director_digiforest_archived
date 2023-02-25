@@ -307,11 +307,11 @@ class ForestPayloadsPanel(QObject):
     def terrain_mapping(self, filename, height_map_file):
         cloud_pc = pcl.PointCloud_PointNormal()
         cloud_pc._from_pcd_file(filename.encode('utf-8'))
-        self._showPCLXYZNormal(cloud_pc, "Cloud Raw", visible=False, parent=os.path.basename(filename))
+        self._show_pclXYZnormal(cloud_pc, "Cloud Raw", visible=False, parent=os.path.basename(filename))
 
         # remove non-up points
         cloud = df.filterUpNormal(cloud_pc, 0.95)
-        self._showPCLXYZNormal(cloud, "Cloud Up Normals only", visible=False, parent=os.path.basename(filename))
+        self._show_pclXYZnormal(cloud, "Cloud Up Normals only", visible=False, parent=os.path.basename(filename))
 
         # drop from xyznormal to xyz
         array_xyz = cloud.to_array()[:, 0:3]
@@ -338,7 +338,7 @@ class ForestPayloadsPanel(QObject):
         polydata=vnp.getVtkPolyDataFromNumpyPoints(cloud.to_array())
         return polydata
 
-    def _showPCLXYZNormal(self, cloud_pc, name, visible, parent):
+    def _show_pclXYZnormal(self, cloud_pc, name, visible, parent):
         array_xyz = cloud_pc.to_array()[:,0:3]
         cloud_pc = pcl.PointCloud()
         cloud_pc.from_array(array_xyz)
@@ -373,7 +373,7 @@ class ForestPayloadsPanel(QObject):
         return s
 
     def _load_image(self, image_file, image_id):
-        polydata = self._load_image_to_vtk(image_fileile)
+        polydata = self._load_image_to_vtk(image_file)
         self.image_manager.addImage(image_id, polydata)
 
     def _load_image_to_vtk(self, filename):
