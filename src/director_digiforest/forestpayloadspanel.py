@@ -28,6 +28,7 @@ import re
 import numpy as np
 import functools
 import shutil
+import threading
 
 def addWidgetsToDict(widgets, d):
 
@@ -72,6 +73,9 @@ class ForestPayloadsPanel(QObject):
         )
         self.ui.stopTreePickingButton.connect(
             "clicked()", self._stop_node_picking   # not used
+        )
+        self.ui.generateHeightmaps.connect(
+            "clicked()", self.generate_height_maps
         )
         # self.ui.pickButtonCombinedPointCloud.connect(
         #     "clicked()", self._start_picking
@@ -361,6 +365,15 @@ class ForestPayloadsPanel(QObject):
 
     def _stop_node_picking(self):
         pass
+
+    def generate_height_maps(self):
+        #TODO not sure what happens if director is closed while the thread is running
+        threading.Thread(target=self._generate_height_maps, daemon=True).start()
+
+    def _generate_height_maps(self):
+        height_map_dir = os.path.join(self.data_dir, "height_maps")
+        payload_cloud_dir = os.path.join(self.data_dir, "payload_clouds_in_map")
+        df.generate_height_maps(payload_cloud_dir, height_map_dir)
 
     def _convert_nano_secs_to_string(self, nsec):
         """Returns a 9 characters string of a nano sec value"""
