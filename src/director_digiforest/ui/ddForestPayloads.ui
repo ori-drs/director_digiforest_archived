@@ -81,7 +81,7 @@
           <item>
            <widget class="QLabel" name="loadGraphText">
             <property name="text">
-             <string>                      </string>
+             <string>                       </string>
             </property>
            </widget>
           </item>
@@ -121,13 +121,6 @@
            <widget class="QPushButton" name="stopPickingButton">
             <property name="text">
              <string>Stop Picking Node</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QPushButton" name="pickButtonCombinedPointCloud">
-            <property name="text">
-             <string>Pick Point</string>
             </property>
            </widget>
           </item>

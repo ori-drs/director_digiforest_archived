@@ -73,9 +73,9 @@ class ForestPayloadsPanel(QObject):
         self.ui.stopTreePickingButton.connect(
             "clicked()", self._stop_node_picking   # not used
         )
-        self.ui.pickButtonCombinedPointCloud.connect(
-            "clicked()", self._start_picking
-        )
+        # self.ui.pickButtonCombinedPointCloud.connect(
+        #     "clicked()", self._start_picking
+        # )
         self.data_dir = None
         self.image_manager = image_manager
         self.tree_data = np.array([])
