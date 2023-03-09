@@ -74,7 +74,7 @@ class ForestPayloadsPanel(QObject):
             "clicked()", self._stop_node_picking   # not used
         )
         self.ui.pickButtonCombinedPointCloud.connect(
-            "clicked()", self._startPicking
+            "clicked()", self._start_picking
         )
         self.data_dir = None
         self.image_manager = image_manager
@@ -107,7 +107,7 @@ class ForestPayloadsPanel(QObject):
     def parse_pose_graph(self, directory):
         pose_graph_file = os.path.join(directory, "slam_poses.csv")
         if os.path.isfile(pose_graph_file):
-            self.loadCsvFile(pose_graph_file)
+            self.load_csv_file(pose_graph_file)
         else:
             pose_graph_file = os.path.join(directory, "slam_pose_graph.g2o")
             if not os.path.isfile(pose_graph_file):
@@ -281,7 +281,7 @@ class ForestPayloadsPanel(QObject):
         self.file_data = self.file_data.astype(float, copy=False)
         self._load_file_data(filename)
 
-    def loadCsvFile(self, filename):
+    def load_csv_file(self, filename):
         print("loading", filename)
         self.file_data = np.loadtxt(filename, delimiter=",", dtype=np.float, skiprows=1)
         self._load_file_data(filename)
@@ -399,7 +399,24 @@ class ForestPayloadsPanel(QObject):
     def _get_image_fileName(self, images_dir, sec, nsec):
         return os.path.join(images_dir, "image_" + str(sec) + "_" + self._convert_nano_secs_to_string(nsec) + ".png")
 
+    def _draw_line(self, points, parent):
+        d = DebugData()
+
+        for i in range(points.shape[0]-1):
+            d.addLine([points[i, 0], points[i, 1], points[i, 2]],
+                      [points[i+1, 0], points[i+1, 1], points[i+1, 2]])
+
+        line = vis.updatePolyData(
+            d.getPolyData(), "trajectory", parent=parent
+        )
+        line.setProperty("Color", QtGui.QColor(240, 128, 0))
+        vis.addChildFrame(line)
+
+
     def _load_file_data(self, filename):
+        '''
+        Display the pose graph data
+        '''
         colors = [QtGui.QColor(0, 255, 0), QtGui.QColor(255, 0, 0), QtGui.QColor(0, 0, 255),
                   QtGui.QColor(255, 255, 0), QtGui.QColor(255, 0, 255), QtGui.QColor(0, 255, 255)]
         exp_num = 1
@@ -409,13 +426,14 @@ class ForestPayloadsPanel(QObject):
         for row in self.file_data:
             # assumes that an experiment has less than 10000 elements
             if row[0] > exp_num*10000 or index_row == self.file_data.shape[0]:
+                # draw the trajectory
+                self._draw_line(data, "slam")
                 # drawing the pose graph
-
                 # finding the payload nodes
                 payload_dir = os.path.join(self.data_dir, "payload_clouds_in_map")
                 if os.path.isdir(payload_dir):
                     payload_files = [f for f in os.listdir(payload_dir) if os.path.isfile(os.path.join(payload_dir, f))]
-                    data_payload = np.array([])  # point coordinates
+                    points_payload = np.array([])  # point coordinates
                     index_payload = np.array([], dtype=np.int64)
                     for file in payload_files:
                         split = re.split('\W+|_', file)
@@ -428,10 +446,10 @@ class ForestPayloadsPanel(QObject):
                                 index_payload = np.append(index_payload, int(index[0][0]))
 
                     if index_payload.size > 0:
-                        data_payload = data[index_payload, :]
+                        points_payload = data[index_payload, :]
                         data = np.delete(data, index_payload, axis=0)
                         timestamps = np.delete(timestamps, index_payload, axis=0)
-                        poly_data = vnp.numpyToPolyData(data_payload)
+                        poly_data = vnp.numpyToPolyData(points_payload)
 
                         if not poly_data or not poly_data.GetNumberOfPoints():
                             print("Failed to read data from file: ", filename)
@@ -456,7 +474,7 @@ class ForestPayloadsPanel(QObject):
                     return
 
                 obj = vis.showPolyData(
-                    poly_data, "experiment_"+str(exp_num), parent="slam"
+                    poly_data, "experiment_"+str(exp_num), visible=False, parent="slam"
                 )
                 obj.setProperty("Point Size", 6)
                 obj.setProperty("Color", colors[(exp_num-1) % len(colors)])
@@ -475,7 +493,7 @@ class ForestPayloadsPanel(QObject):
                     timestamps = timestamp
             index_row += 1
 
-    def _startPicking(self):
+    def _start_picking(self):
         picker = segmentation.PointPicker(numberOfPoints=1, polyDataName='combined_cloud.pcd')
         picker.view = app.getDRCView()
         segmentation.addViewPicker(picker)
