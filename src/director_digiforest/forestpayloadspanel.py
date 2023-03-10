@@ -84,6 +84,7 @@ class ForestPayloadsPanel(QObject):
         #     "clicked()", self._start_picking
         # )
         self.data_dir = None
+        self.height_maps_dir_name = "height_maps_in_map"
         self.image_manager = image_manager
         self.tree_data = np.array([])
         
@@ -168,7 +169,7 @@ class ForestPayloadsPanel(QObject):
             return
 
         local_pointcloud_dir = os.path.join(self.data_dir, "individual_clouds")
-        height_map_dir = os.path.join(self.data_dir, "height_maps_in_map")
+        height_map_dir = os.path.join(self.data_dir, self.height_maps_dir_name)
         local_height_map = "height_map_"+str(sec)+"_"+self._convert_nano_secs_to_string(nsec)+".ply"
         height_map_file = os.path.join(height_map_dir, local_height_map)
 
@@ -296,7 +297,7 @@ class ForestPayloadsPanel(QObject):
         self._load_file_data(filename)
 
     def load_all_height_maps(self):
-        height_map_dir = os.path.join(self.data_dir, "height_maps_in_map")
+        height_map_dir = os.path.join(self.data_dir, self.height_maps_dir_name)
         if os.path.isdir(height_map_dir):
             height_maps = [f for f in os.listdir(height_map_dir) if os.path.isfile(os.path.join(height_map_dir, f))]
             for height_map_file in height_maps:
@@ -396,7 +397,7 @@ class ForestPayloadsPanel(QObject):
         threading.Thread(target=self._generate_height_maps, daemon=True).start()
 
     def _generate_height_maps(self):
-        height_map_dir = os.path.join(self.data_dir, "height_maps_in_map")
+        height_map_dir = os.path.join(self.data_dir, self.height_maps_dir_name)
         payload_cloud_dir = os.path.join(self.data_dir, "payload_clouds_in_map")
         df.generate_height_maps(payload_cloud_dir, height_map_dir)
 
