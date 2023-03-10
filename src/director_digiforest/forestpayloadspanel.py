@@ -20,7 +20,7 @@ import vtkAll as vtk
 from director_digiforest.objectpicker import ObjectPicker
 from vtk.util import numpy_support
 
-import forest_nav_py as df
+import digiforest_drs as df
 import pcl
 
 import os
@@ -317,7 +317,7 @@ class ForestPayloadsPanel(QObject):
             pcd=pcl.PointCloud()
             pcd.from_list(self.heights_array_raw)
             pcd.to_file(b'/tmp/height_map.pcd')
-            os.system("rosrun forest_nav generate_mesh") # running a ROS node to convert heights to mesh - nasty!
+            os.system("rosrun digiforest_drs generate_mesh") # running a ROS node to convert heights to mesh - nasty!
             height_maps_dir = os.path.dirname(height_map_file)
             if not os.path.isdir(height_maps_dir):
                 os.makedirs(height_maps_dir)
