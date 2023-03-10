@@ -55,7 +55,7 @@ class ObjectPicker(TimerCallback):
         # draw points
         for p in points:
             if p is not None:
-                d.addSphere(p, radius=0.03)
+                d.addSphere(p, radius=0.08)
 
         self.annotationObj = vis.updatePolyData(
             d.getPolyData(), "annotation", parent=om.findObjectByName("slam")

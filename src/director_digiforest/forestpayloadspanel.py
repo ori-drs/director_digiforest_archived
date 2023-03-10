@@ -197,7 +197,7 @@ class ForestPayloadsPanel(QObject):
         From a csv file describing the trees as cylinders, load and display them
         '''
         print("Loading ", filename)
-        self.tree_data = np.loadtxt(filename, delimiter=" ", dtype=np.float)
+        self.tree_data = np.loadtxt(filename, delimiter=" ", dtype=np.float64)
         id = 0
         for tree in self.tree_data:
             if tree.size < 7:
@@ -287,7 +287,7 @@ class ForestPayloadsPanel(QObject):
 
     def load_csv_file(self, filename):
         print("loading", filename)
-        self.file_data = np.loadtxt(filename, delimiter=",", dtype=np.float, skiprows=1)
+        self.file_data = np.loadtxt(filename, delimiter=",", dtype=np.float64, skiprows=1)
         self._load_file_data(filename)
 
     def convert_heights_mesh(self, parent, height_map_file):
