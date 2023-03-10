@@ -77,6 +77,9 @@ class ForestPayloadsPanel(QObject):
         self.ui.generateHeightmaps.connect(
             "clicked()", self.generate_height_maps
         )
+        self.ui.loadHeightmaps.connect(
+            "clicked()", self.load_all_height_maps
+        )
         # self.ui.pickButtonCombinedPointCloud.connect(
         #     "clicked()", self._start_picking
         # )
@@ -165,7 +168,7 @@ class ForestPayloadsPanel(QObject):
             return
 
         local_pointcloud_dir = os.path.join(self.data_dir, "individual_clouds")
-        height_map_dir = os.path.join(self.data_dir, "height_maps")
+        height_map_dir = os.path.join(self.data_dir, "height_maps_in_map")
         local_height_map = "height_map_"+str(sec)+"_"+self._convert_nano_secs_to_string(nsec)+".ply"
         height_map_file = os.path.join(height_map_dir, local_height_map)
 
@@ -255,7 +258,9 @@ class ForestPayloadsPanel(QObject):
             return
 
         #transformedPolyData = self.transformPolyData(polyData, trans, quat)
-        obj = vis.showPolyData(poly_data, os.path.basename(filename), parent="slam")
+        cloud_container_name = os.path.splitext(os.path.basename(filename))[0] # removes the extension
+        om.getOrCreateContainer(cloud_container_name, parentObj=om.findObjectByName("slam"))
+        obj = vis.showPolyData(poly_data, os.path.basename(filename), parent=cloud_container_name)
         vis.addChildFrame(obj)
 
     def transformPolyData(self, poly_data, translation, quat):
@@ -290,6 +295,22 @@ class ForestPayloadsPanel(QObject):
         self.file_data = np.loadtxt(filename, delimiter=",", dtype=np.float64, skiprows=1)
         self._load_file_data(filename)
 
+    def load_all_height_maps(self):
+        height_map_dir = os.path.join(self.data_dir, "height_maps_in_map")
+        if os.path.isdir(height_map_dir):
+            height_maps = [f for f in os.listdir(height_map_dir) if os.path.isfile(os.path.join(height_map_dir, f))]
+            for height_map_file in height_maps:
+                # assuming a file with a name like height_map_1663668471_346755000.ply
+                s = re.split('[_ .]', height_map_file)
+                if len(s) != 5:
+                    continue
+
+                parent_cloud = "cloud_" + s[2] + "_" + s[3]
+                self._display_height_map_file(os.path.join(height_map_dir, height_map_file), parent_cloud)
+        else:
+            print("Cannot read", height_map_dir)
+
+
     def convert_heights_mesh(self, parent, height_map_file):
         if not os.path.isfile(height_map_file):
             pcd=pcl.PointCloud()
@@ -303,9 +324,13 @@ class ForestPayloadsPanel(QObject):
         else:
             print("Loading height_map", height_map_file)
 
-        self.height_mesh = ioutils.readPolyData(height_map_file)
-        self.height_mesh = segmentation.addCoordArraysToPolyDataXYZ( self.height_mesh )
-        vis.showPolyData(self.height_mesh, 'Height Mesh', 'Color By', 'z',
+        self._display_height_map_file(height_map_file, parent)
+
+
+    def _display_height_map_file(self, height_map_file, parent):
+        height_mesh = ioutils.readPolyData(height_map_file)
+        height_mesh = segmentation.addCoordArraysToPolyDataXYZ( height_mesh )
+        vis.showPolyData(height_mesh, 'Height Mesh', 'Color By', 'z',
                          colorByRange=[self.medianPoseHeight-4,self.medianPoseHeight+4], parent=parent)
 
     def terrain_mapping(self, filename, height_map_file):
@@ -371,7 +396,7 @@ class ForestPayloadsPanel(QObject):
         threading.Thread(target=self._generate_height_maps, daemon=True).start()
 
     def _generate_height_maps(self):
-        height_map_dir = os.path.join(self.data_dir, "height_maps")
+        height_map_dir = os.path.join(self.data_dir, "height_maps_in_map")
         payload_cloud_dir = os.path.join(self.data_dir, "payload_clouds_in_map")
         df.generate_height_maps(payload_cloud_dir, height_map_dir)
 
