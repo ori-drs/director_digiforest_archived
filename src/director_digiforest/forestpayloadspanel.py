@@ -56,6 +56,7 @@ class ForestPayloadsPanel(QObject):
 
         self.widget = loader.load(uifile)
         self.file_data = np.array([])
+        self.exp_num = 0
         self.view = app.getDRCView()
         self.ui = WidgetDict(self.widget.children())
         
@@ -376,18 +377,20 @@ class ForestPayloadsPanel(QObject):
         vis.showPolyData(cloud_pd, name, visible=visible, parent=parent)
 
     def _start_node_picking(self, ):
-        picker = ObjectPicker(numberOfPoints=1, view=app.getCurrentRenderView())
+        object_list = [name + str(i) for i in range(1, self.exp_num+1) for name in ("payload_", "experiment_")]
+
+        picker = ObjectPicker(number_of_points=1, view=app.getCurrentRenderView(), object_list=object_list)
         segmentation.addViewPicker(picker)
         picker.enabled = True
         picker.start()
-        picker.annotationFunc = functools.partial(self.find_node_data)
+        picker.annotation_func = functools.partial(self.find_node_data)
 
     def _start_tree_picking(self, ):
-        picker = ObjectPicker(numberOfPoints=1, view=app.getCurrentRenderView(), pickType="cells")
+        picker = ObjectPicker(number_of_points=1, view=app.getCurrentRenderView(), pick_type="cells")
         segmentation.addViewPicker(picker)
         picker.enabled = True
         picker.start()
-        picker.annotationFunc = functools.partial(self.find_tree)
+        picker.annotation_func = functools.partial(self.find_tree)
 
     def _stop_node_picking(self):
         pass
@@ -465,6 +468,7 @@ class ForestPayloadsPanel(QObject):
         for row in self.file_data:
             # assumes that an experiment has less than 10000 elements
             if row[0] > exp_num*10000 or index_row == self.file_data.shape[0]:
+                self.exp_num += 1
                 # draw the trajectory
                 self._draw_line(data, "slam")
                 # drawing the pose graph
