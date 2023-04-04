@@ -122,7 +122,7 @@ class ForestPayloadsPanel(QObject):
             if not os.path.isfile(pose_graph_file):
                 print("Cannot find slam_poses.csv or slam_pose_graph.g2o in", directory)
             else:
-                self.loadg2oFile(pose_graph_file)
+                self.load_g2o_file(pose_graph_file)
 
     def find_tree(self, picked_coords):
 
@@ -265,13 +265,13 @@ class ForestPayloadsPanel(QObject):
         obj = vis.showPolyData(poly_data, os.path.basename(filename), parent=cloud_container_name)
         vis.addChildFrame(obj)
 
-    def transformPolyData(self, poly_data, translation, quat):
-        node_transform = transformUtils.transformFromPose(translation, quat)
+    # def transformPolyData(self, poly_data, translation, quat):
+    #     node_transform = transformUtils.transformFromPose(translation, quat)
 
         transformedPolyData = filterUtils.transformPolyData(poly_data, node_transform)
         return transformedPolyData
 
-    def loadg2oFile(self, filename):
+    def load_g2o_file(self, filename):
         print("loading", filename)
         self.file_data = np.loadtxt(filename, delimiter=" ", dtype='<U21', usecols=np.arange(0,11))
         #only keep vertex SE3 rows
